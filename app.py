@@ -122,48 +122,41 @@ if uploaded_file:
     # 데이터 불러오기
     df = pd.read_excel(uploaded_file)
     
-    # 1. 완료/미완료 판별 로직 함수 (업데이트 됨)
+    # 1. 완료/미완료 판별 로직 함수
     def check_status(row):
-        # [조건 1] 필수값 공란 또는 'X' 체크
-        req_cols = ['광고주명', '광고주담당자', '광고주이메일']
-        for col in req_cols:
+        # 공통 빈값 판별 함수
+        def is_empty(col):
             val = str(row.get(col, '')).strip()
-            if pd.isna(row.get(col)) or val == '' or val.upper() == 'X' or val == 'nan':
-                return "미완료"
-        
-        # [조건 2] 연락처 체크 (일반전화나 휴대전화 둘 중 하나만 있으면 정상)
-        phone_mobile = str(row.get('휴대전화', '')).strip()
-        phone_landline = str(row.get('일반전화', '')).strip()
-        
-        def is_invalid_phone(p):
-            return '없음' in p or 'X' in p.upper() or p == '' or p == 'nan'
-            
-        if is_invalid_phone(phone_mobile) and is_invalid_phone(phone_landline):
+            return pd.isna(row.get(col)) or val == '' or val.upper() == 'X' or val == 'nan' or '없음' in val
+
+        # [조건 1] 광고주명 체크
+        if is_empty('광고주명'):
             return "미완료"
-            
-        # [조건 3] 이메일 형식 체크 (@ 포함 여부)
-        email = str(row.get('광고주이메일', '')).strip()
-        if '@' not in email:
+
+        # [조건 2] 업체담당자 체크
+        if is_empty('업체담당자'):
             return "미완료"
-            
-        # [조건 4 - V3 NEW] 홈페이지 키워드 예외 처리 로직 (11st, coupang, minishop 추가)
+
+        # [조건 3] 일반전화 / 휴대전화 (둘 중 하나만 있으면 정상)
+        if is_empty('일반전화') and is_empty('휴대전화'):
+            return "미완료"
+
+        # [조건 4] 이메일 체크 (값 존재 + @ 포함)
+        email = str(row.get('이메일', '')).strip()
+        if is_empty('이메일') or '@' not in email:
+            return "미완료"
+
+        # [조건 5] 홈페이지 체크 (예외 키워드 포함 시 정상 인정)
         homepage = str(row.get('홈페이지', '')).strip().lower()
-        
-        # 정상으로 인정해 줄 예외 키워드 목록
         valid_hp_keywords = [
-            'pf.kakao', 'smartstore', 'openmarket', 
+            'pf.kakao', 'smartstore', 'openmarket',
             '11st', 'coupang', 'minishop'
         ]
-        
-        # 홈페이지 문자열 안에 위 키워드 중 하나라도 들어있으면 True
         is_valid_hp = any(kw in homepage for kw in valid_hp_keywords)
-        
-        # 만약 예외 키워드가 포함되지 않았다면, 빈칸/X/없음 인지 추가 확인
-        if not is_valid_hp:
-            if homepage == '' or homepage == 'nan' or homepage == 'x' or '없음' in homepage:
-                return "미완료"
-                
-        # 모든 관문을 무사히 통과하면 완료!
+        if not is_valid_hp and is_empty('홈페이지'):
+            return "미완료"
+
+        # 모든 조건 통과 시 완료
         return "완료"
 
     # '검증상태' 열 추가
