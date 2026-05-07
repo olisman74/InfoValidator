@@ -62,6 +62,56 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ---------------- 로그안 로직 시작 ----------------
+def check_password():
+    """Returns `True` if the user had a correct password."""
+
+    def password_entered():
+        """Checks whether a password entered by the user is correct."""
+        user = st.session_state["username"]
+        pw = st.session_state["password"]
+        
+        # st.secrets에 등록된 계정과 일치하는지 확인
+        if "passwords" in st.secrets and user in st.secrets["passwords"] and st.secrets["passwords"][user] == pw:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # 보안을 위해 세션에서 비밀번호 삭제
+            del st.session_state["username"]
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        # 최초 접속 시 로그인 화면 표시
+        st.markdown("### 🔒 보안 대시보드 로그인")
+        st.text_input("아이디 (ID)", key="username")
+        st.text_input("비밀번호 (Password)", type="password", key="password")
+        st.button("로그인", on_click=password_entered)
+        return False
+        
+    elif not st.session_state["password_correct"]:
+        # 비밀번호가 틀렸을 때 에러 메시지 표시
+        st.markdown("### 🔒 보안 대시보드 로그인")
+        st.text_input("아이디 (ID)", key="username")
+        st.text_input("비밀번호 (Password)", type="password", key="password")
+        st.button("로그인", on_click=password_entered)
+        st.error("😕 아이디 또는 비밀번호가 틀렸습니다.")
+        return False
+        
+    else:
+        # 로그인이 성공한 상태
+        return True
+
+# 로그인되지 않았다면 여기서 앱 실행을 멈춤 (아래 코드는 실행되지 않음)
+if not check_password():
+    st.stop()
+
+# 로그아웃 버튼 (사이드바)
+def logout():
+    st.session_state.clear()
+    st.rerun()
+
+st.sidebar.button("로그아웃", on_click=logout)
+# ---------------- 로그인 로직 끝 ----------------
+
 st.title("📊 팀별 광고주 데이터 검증 대시보드 (V3)")
 
 # 엑셀 파일 업로드 UI
