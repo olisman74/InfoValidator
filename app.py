@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import io
 
 # 웹 페이지 기본 설정
 st.set_page_config(page_title="광고주 정보 검증 대시보드", layout="wide", page_icon="📊")
@@ -155,3 +156,51 @@ if uploaded_file:
     
     # 결과 출력
     st.dataframe(filtered_df, use_container_width=True)
+
+    st.markdown("---")
+    st.header("📥 미완료 데이터 다운로드")
+    
+    col_dl1, col_dl2 = st.columns(2)
+    
+    with col_dl1:
+        st.markdown("**현재 조회 중인 데이터 다운로드**")
+        st.caption(f"선택하신 '{selected_team}'의 데이터를 엑셀로 다운로드합니다.")
+        
+        output_current = io.BytesIO()
+        with pd.ExcelWriter(output_current, engine='openpyxl') as writer:
+            filtered_df.to_excel(writer, index=False, sheet_name='미완료_데이터')
+            
+        st.download_button(
+            label=f"⬇️ '{selected_team}' 데이터 다운로드",
+            data=output_current.getvalue(),
+            file_name=f"미완료리스트_{selected_team}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+        
+    with col_dl2:
+        st.markdown("**모든 팀 한 번에 다운로드 (시트 분리)**")
+        st.caption("각 팀별로 엑셀 하단 시트(Sheet)가 분리된 하나의 파일을 다운로드합니다.")
+        
+        output_all = io.BytesIO()
+        incomplete_all = df[df['검증상태'] == '미완료']
+        
+        with pd.ExcelWriter(output_all, engine='openpyxl') as writer:
+            teams = incomplete_all['팀명'].dropna().unique()
+            for team in teams:
+                # 엑셀 시트명은 최대 31자까지 가능하며 특수문자 일부 제한됨
+                safe_team_name = str(team).replace('/', '_').replace('\\', '_')[:31]
+                team_df = incomplete_all[incomplete_all['팀명'] == team]
+                team_df.to_excel(writer, index=False, sheet_name=safe_team_name)
+                
+            if len(teams) == 0:
+                pd.DataFrame({"메시지": ["모든 데이터가 완료되었습니다."]}).to_excel(writer, index=False, sheet_name='완료')
+                
+        st.download_button(
+            label="⬇️ 전체 팀 시트별 다운로드",
+            data=output_all.getvalue(),
+            file_name="미완료리스트_전체팀_시트별.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            type="primary"
+        )
