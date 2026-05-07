@@ -125,19 +125,24 @@ if uploaded_file:
     # 1. 완료/미완료 판별 로직 함수 (업데이트 됨)
     def check_status(row):
         # [조건 1] 필수값 공란 또는 'X' 체크
-        req_cols = ['광고주명', '업체담당자', '이메일', '사업자번호']
+        req_cols = ['광고주명', '광고주담당자', '광고주이메일']
         for col in req_cols:
             val = str(row.get(col, '')).strip()
             if pd.isna(row.get(col)) or val == '' or val.upper() == 'X' or val == 'nan':
                 return "미완료"
         
-        # [조건 2] 연락처 체크 (휴대전화 기준, '없음'이나 'X' 확인)
-        phone = str(row.get('휴대전화', '')).strip()
-        if '없음' in phone or 'X' in phone.upper() or phone == '' or phone == 'nan':
+        # [조건 2] 연락처 체크 (일반전화나 휴대전화 둘 중 하나만 있으면 정상)
+        phone_mobile = str(row.get('휴대전화', '')).strip()
+        phone_landline = str(row.get('일반전화', '')).strip()
+        
+        def is_invalid_phone(p):
+            return '없음' in p or 'X' in p.upper() or p == '' or p == 'nan'
+            
+        if is_invalid_phone(phone_mobile) and is_invalid_phone(phone_landline):
             return "미완료"
             
         # [조건 3] 이메일 형식 체크 (@ 포함 여부)
-        email = str(row.get('이메일', '')).strip()
+        email = str(row.get('광고주이메일', '')).strip()
         if '@' not in email:
             return "미완료"
             
